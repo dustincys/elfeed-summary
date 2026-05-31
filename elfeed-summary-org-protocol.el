@@ -49,8 +49,8 @@
                   (entry))
 
 ;; These two helpers are assumed to exist – adjust the file name if needed.
-(declare-function elfeed-tag-1   "elfeed-summary-operations" (entry tag))
-(declare-function elfeed-untag-1 "elfeed-summary-operations" (entry tag))
+(declare-function elfeed-tag-1   "elfeed-db.el" (entry tag))
+(declare-function elfeed-untag-1 "elfeed-db.el" (entry tag))
 
 ;; ── Entry formatting and selection (Helm) ────────────────────────────
 
