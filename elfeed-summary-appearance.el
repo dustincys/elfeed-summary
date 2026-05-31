@@ -1,8 +1,8 @@
 ;;; elfeed-summary-appearance.el --- Custom entry display for Elfeed  -*- lexical-binding: t; -*-
 
-;; Author: Your Name <email>
+;; Author: Yanshuo Chu <yanshuochu@qq.com>
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "30.2") (elfeed "3.5") (elfeed-goodies "0.9"))
+;; Package-Requires: ((emacs "30.2") (elfeed "3.5") (elfeed-goodies "0.9") (org "9.6"))
 ;; Keywords: news, paper
 ;; Commentary:
 ;; Overrides elfeed-goodies's entry display to include custom
