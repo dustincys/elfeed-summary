@@ -33,6 +33,8 @@
 (require 'elfeed-db)            ;; for elfeed-db-entries hash table
 (require 'elfeed-show)          ;; for elfeed-show-refresh
 
+(require 'elfeed-summary-utils)
+
 ;; ── Register the protocol ────────────────────────────────────────────
 
 ;;;###autoload
@@ -79,14 +81,6 @@ Returns the chosen entry or nil if aborted."
 
 ;; ── Save summary into an Elfeed entry ────────────────────────────────
 
-(defun elfeed-summary-save-summary (entry text)
-  "Save TEXT as the summary for ENTRY.
-Tags the entry as `summarized' and removes the `to-summarize' tag.
-Records the summary text and the modification time in entry meta."
-  (elfeed-tag-1 entry 'summarized)
-  (elfeed-untag-1 entry 'to-summarize)
-  (elfeed-meta--put entry :summary text)
-  (elfeed-meta--put entry :summary-modified-at (float-time)))
 
 ;; ── Main capture handler ─────────────────────────────────────────────
 
@@ -105,7 +99,7 @@ INFO is a plist containing keys :url, :title, :summary
       (delete-frame))
     (message "org-protocol://elfeed-summary handling: %s" title)
     (when entry
-      (elfeed-summary-save-summary entry summary)
+      (elfeed-summary--save-summary entry summary)
       (message "Saved summary into entry: %s" (elfeed-entry-title entry))
       (when summary
         (message "Begin indexing %s..." (elfeed-entry-title entry))
@@ -125,3 +119,7 @@ INFO is a plist containing keys :url, :title, :summary
 
 (provide 'elfeed-summary-org-protocol)
 ;;; elfeed-summary-org-protocol.el ends here
+
+;; Local Variables:
+;; comment-column: 0
+;; End:

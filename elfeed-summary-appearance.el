@@ -18,19 +18,6 @@
 (require 'elfeed)
 (require 'elfeed-goodies)
 
-;; ── Helpers ──────────────────────────────────────────────────────────
-
-(defun elfeed-summary--html-to-text-simple (html)
-  "Convert HTML to single-line text by stripping tags."
-  (replace-regexp-in-string
-   "^ *\\| *$" ""
-   (replace-regexp-in-string
-    "[ \t\n]+" " "
-    (replace-regexp-in-string
-     "<[^>]+>" "" html))))
-
-;; ── Override the entry display function ──────────────────────────────
-
 (defun elfeed-goodies/show-refresh--plain ()
   "Insert Content into Entry show buffer.
 Show enriched metadata (title, authors, institution, summary,
@@ -90,4 +77,3 @@ bib, doi, abstract, pdf) and simplified HTML content."
     (goto-char (point-min))))
 
 (provide 'elfeed-summary-appearance)
-;;; elfeed-summary-appearance.el ends here

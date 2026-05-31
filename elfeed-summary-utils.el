@@ -23,10 +23,52 @@
 
 (require 'elfeed)
 
-;; ── String utilities ─────────────────────────────────────────────────
 
-(defun elfeed-summary--html-to-text (html)
-  "Strip HTML tags from HTML and collapse whitespace."
+;; elfeed utilities ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defun elfeed-summary--parse-json-result (json-data)
+  "将 JSON 数据转换为 URL 到内容的哈希表"
+  (let ((hash (make-hash-table :test 'equal)))
+    (cl-loop for item across json-data do
+             (let* ((url (alist-get 'url item))
+                    (raw-summary (alist-get 'summary item))
+                    (summary (if (or (null raw-summary)
+                                     (string-empty-p raw-summary))
+                                 ""
+                               raw-summary)))
+               (when url
+                 (puthash url summary hash))))
+    hash))
+
+
+
+;; elfeed entry operation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defun elfeed-summary--get-current-entry ()
+  "Return the Elfeed entry for the current buffer."
+  (cond
+   ;; Entry buffer
+   ((derived-mode-p 'elfeed-show-mode)
+    (bound-and-true-p elfeed-show-entry))
+   ;; Search buffer
+   ((derived-mode-p 'elfeed-search-mode)
+    (or (elfeed-search-selected t) elfeed-show-entry))
+   (t
+    (error "Not in an Elfeed buffer"))))
+
+
+(defun elfeed-summary--elfeed-save-summary (entry text)
+  "Save TEXT as summary for ENTRY and update the modification timestamp."
+  (elfeed-tag-1 entry 'summarized)
+  (elfeed-untag-1 entry 'to-summarize)
+  (elfeed-meta--put entry :summary text)
+  (elfeed-meta--put entry :summary-modified-at (float-time)))
+
+;; string operation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun elfeed-summary--html-to-text-simple (html)
+  "Convert HTML to single-line text by stripping tags."
   (replace-regexp-in-string
    "^ *\\| *$" ""
    (replace-regexp-in-string
@@ -34,69 +76,105 @@
     (replace-regexp-in-string
      "<[^>]+>" "" html))))
 
-(defun elfeed-summary--clean-title (title)
-  "Remove common noise from a paper/article TITLE.
-For instance, strips everything after a '|' and removes
-' - ScienceDirect' suffix."
-  (let ((clean title))
-    (setq clean (replace-regexp-in-string "|.*$" "" clean))
-    (replace-regexp-in-string " - ScienceDirect$" "" clean)))
 
-;; ── Metadata helpers ─────────────────────────────────────────────────
+(defun elfeed-summary--extract-biorxiv-doi (url)
+  "Extract clean bioRxiv DOI from URL."
+  (when (and url
+             (string-match
+              "10\\.[0-9]+/[A-Za-z0-9._;()/:-]+"
+              url))
+    (let ((doi (match-string 0 url)))
+      ;; remove trailing v1/v2/v3...
+      (replace-regexp-in-string
+       "v[0-9]+$"
+       ""
+       doi))))
 
-(defun elfeed-summary--meta (entry key &optional default)
-  "Safely read Elfeed meta KEY from ENTRY.
-Return DEFAULT if the key is missing (default nil)."
-  (if entry
-      (elfeed-meta entry key)
-    default))
 
-(defun elfeed-summary--meta-put (entry key value)
-  "Set meta KEY to VALUE for ENTRY (like `elfeed-meta--put')."
-  (elfeed-meta--put entry key value))
+(defun elfeed-summary--science-url-to-doi (url)
+  (when
+      (string-match
+       "science\\.org/doi/\\(?:full/\\|abs/\\)?\\([^?]+\\)"
+       url)
+    (match-string 1 url)))
 
-(defun elfeed-summary--get-summary (entry)
-  "Return the stored summary of ENTRY, or an empty string."
-  (or (elfeed-summary--meta entry :summary) ""))
 
-;; ── Tag utilities ────────────────────────────────────────────────────
+;; url operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun elfeed-summary--has-tag (entry tag)
-  "Return t if ENTRY has TAG."
-  (member tag (elfeed-entry-tags entry)))
+(defun elfeed-summary--http-get-json (url)
+  (with-current-buffer
+      (url-retrieve-synchronously url t t 30)
+    (goto-char (point-min))
+    (re-search-forward "^$")
+    (forward-char)
+    (json-parse-buffer
+     :object-type 'alist
+     :array-type 'list)))
 
-(defun elfeed-summary--add-tag (entry tag)
-  "Add TAG to ENTRY (no database save)."
-  (elfeed-entry-set-tags
-   entry (cl-pushnew tag (elfeed-entry-tags entry) :test #'equal)))
+(defun elfeed-summary--http-get-xml (url)
+  (with-current-buffer
+      (url-retrieve-synchronously url t t 30)
+    (goto-char (point-min))
+    (re-search-forward "^$")
+    (forward-char)
+    (libxml-parse-xml-region
+     (point)
+     (point-max))))
 
-(defun elfeed-summary--remove-tag (entry tag)
-  "Remove TAG from ENTRY (no database save)."
-  (elfeed-entry-set-tags
-   entry (remove tag (elfeed-entry-tags entry))))
+(defun elfeed-summary--xml-get-children (node tag)
+  (seq-filter
+   (lambda (x)
+     (and (listp x)
+          (eq (car x) tag)))
+   (xml-node-children node)))
 
-;; ── Date / time ──────────────────────────────────────────────────────
+(defun elfeed-summary--xml-first-child (node tag)
+  (car
+   (elfeed-summary--xml-get-children node tag)))
 
-(defun elfeed-summary--format-date (seconds)
-  "Format SECONDS (a time value) as YYYY-MM-DD."
-  (format-time-string "%Y-%m-%d" (seconds-to-time seconds)))
+(defun elfeed-summary--xml-node-text (node)
+  (when node
+    (string-trim
+     (mapconcat
+      (lambda (x)
+        (cond
+         ((stringp x) x)
+         ((listp x)
+          (elfeed-summary--xml-node-text x))
+         (t "")))
+      (xml-node-children node)
+      ""))))
 
-;; ── File utilities ───────────────────────────────────────────────────
+(defun elfeed-summary--xml-path (node &rest tags)
+  (seq-reduce
+   (lambda (n tag)
+     (when n
+       (elfeed-summary--xml-first-child n tag)))
+   tags
+   node))
 
-(defun elfeed-summary--make-temp-file (prefix &optional suffix)
-  "Create a temporary file with PREFIX and optional SUFFIX.
-Wrapper for `make-temp-file'."
-  (make-temp-file prefix nil suffix))
+;; time operations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun elfeed-summary--delete-file-silently (file)
-  "Delete FILE, ignoring errors."
-  (ignore-errors (delete-file file)))
+(defun elfeed-summary--parse-rdf-date (date-str)
+  "Try to parse DATE-STR as ISO 8601 or fallback.
+Return a time value (seconds since epoch) or nil."
+  (when (stringp date-str)
+    (condition-case nil
+        (if (fboundp 'iso8601-parse-string)
+            ;; Emacs 26+
+            (let ((time (iso8601-parse-string date-str)))
+              (encode-time (decoded-time-add time (make-decoded-time))))
+          ;; Fallback: try parse-time-string
+          (let ((parsed (parse-time-string date-str)))
+            (when (car parsed) ; at least year
+              (encode-time parsed))))
+      (error nil))))
 
-;; ── Misc ─────────────────────────────────────────────────────────────
 
-(defun elfeed-summary--message (format-string &rest args)
-  "Like `message', but prefixed with [elfeed-summary]."
-  (apply #'message (concat "[elfeed-summary] " format-string) args))
 
 (provide 'elfeed-summary-utils)
 ;;; elfeed-summary-utils.el ends here
+
+;; Local Variables:
+;; comment-column: 0
+;; End:
