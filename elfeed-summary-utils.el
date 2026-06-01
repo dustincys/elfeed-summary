@@ -66,6 +66,20 @@
   (elfeed-meta--put entry :summary text)
   (elfeed-meta--put entry :summary-modified-at (float-time)))
 
+
+;; ── Tagging helpers (moved here from `elfeed-summary-org-protocol') ──
+
+(defun elfeed-summary--elfeed-tag-1 (entry tag)
+  "Add TAG to ENTRY without triggering a full DB save."
+  (elfeed-entry-set-tags
+   entry (cl-pushnew tag (elfeed-entry-tags entry) :test #'equal)))
+
+(defun elfeed-summary--elfeed-untag-1 (entry tag)
+  "Remove TAG from ENTRY without triggering a full DB save."
+  (elfeed-entry-set-tags
+   entry (remove tag (elfeed-entry-tags entry))))
+
+
 ;; string operation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun elfeed-summary--html-to-text-simple (html)
   "Convert HTML to single-line text by stripping tags."

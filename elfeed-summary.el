@@ -21,8 +21,17 @@
 (require 'elfeed-summary-keys)
 
 
+(defcustom elfeed-summary-node-fetch-script
+  "/home/dustin/github/article-summarizer/src/fetch-articles.js"
+  "Path to the Node.js script that accepts an input file (one URL per line)
+and an output file, writing a JSON object mapping URL → summary."
+  :type 'file
+  :group 'elfeed-summary)
 
-
+(defcustom elfeed-summary-fetch-timeout 7200
+  "Timeout in seconds for the batch fetch process."
+  :type 'integer
+  :group 'elfeed-summary)
 
 
 
