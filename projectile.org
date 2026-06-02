@@ -1,0 +1,5 @@
+* Plan
+
+** TODO Add update entry info funcs    :elfeed-summary:
+[2026-06-02 Tue 08:59] In file: [[file:///home/dustin/github/elfeed-summary/elfeed-summary-org-protocol.el::100][elfeed-summary-org-protocol.el]]
+

@@ -35,55 +35,21 @@
 
 (require 'elfeed-summary-utils)
 
-;; ── Register the protocol ────────────────────────────────────────────
 
-;;;###autoload
+(declare-function elfeed-summary-db-index-entry-async
+                  "elfeed-summary-db"
+                  (entry))
+(declare-function elfeed-tag-1   "elfeed-db.el" (entry tag))
+(declare-function elfeed-untag-1 "elfeed-db.el" (entry tag))
+
+;; ── Register the protocol ────────────────────────────────────────────
 (eval-after-load 'org-protocol
   '(add-to-list 'org-protocol-protocol-alist
                 '("elfeed-summary"
                   :protocol "elfeed-summary"
                   :function elfeed-summary--capture)))
 
-;; ── Cross‑module function declarations ──────────────────────────────
-
-(declare-function elfeed-summary-db-index-entry-async
-                  "elfeed-summary-db"
-                  (entry))
-
-;; These two helpers are assumed to exist – adjust the file name if needed.
-(declare-function elfeed-tag-1   "elfeed-db.el" (entry tag))
-(declare-function elfeed-untag-1 "elfeed-db.el" (entry tag))
-
-;; ── Entry formatting and selection (Helm) ────────────────────────────
-
-(defun elfeed-summary--entry-to-string (entry)
-  "Format ENTRY into a human-readable string for Helm."
-  (let ((title (elfeed-entry-title entry))
-        (feed  (elfeed-feed-title (elfeed-entry-feed entry))))
-    (format "[%s] %s" feed title)))
-
-(defun elfeed-summary-select-entry (&optional default-input)
-  "Select an Elfeed entry using Helm.
-DEFAULT-INPUT is a string used to pre‑filter the candidates.
-Returns the chosen entry or nil if aborted."
-  (helm :sources
-        (list
-         (helm-build-sync-source "Elfeed entries"
-           :candidates (mapcar
-                        (lambda (e)
-                          (cons (elfeed-summary--entry-to-string e) e))
-                        (hash-table-values elfeed-db-entries))
-           :fuzzy-match t
-           :action 'identity))
-        :buffer "*helm elfeed*"
-        :input (when default-input (string-trim default-input))
-        :execute-action-at-once-if-one t))
-
-;; ── Save summary into an Elfeed entry ────────────────────────────────
-
-
 ;; ── Main capture handler ─────────────────────────────────────────────
-
 (defun elfeed-summary--capture (info)
   "Handle `org-protocol://elfeed-summary' requests.
 INFO is a plist containing keys :url, :title, :summary
@@ -93,7 +59,7 @@ INFO is a plist containing keys :url, :title, :summary
          (title   (replace-regexp-in-string "|.*$" "" title))
          (title   (replace-regexp-in-string " - ScienceDirect$" "" title))
          (summary (plist-get info :summary))
-         (entry   (elfeed-summary-select-entry title)))
+         (entry   (elfeed-summary--select-entry title)))
     ;; If Emacs was launched just for this client request, close its frame.
     (when (frame-parameter nil 'client)
       (delete-frame))

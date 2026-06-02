@@ -45,6 +45,46 @@
 
 ;; elfeed entry operation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun elfeed-summary--search-entries ()
+  "Return all visible entries in current elfeed-search buffer."
+  (let (entries)
+    (with-current-buffer "*elfeed-search*"
+      (save-excursion
+        (goto-char (point-min))
+        (while (not (eobp))
+          (let ((entry
+                 (elfeed-search-selected
+                  :ignore-region)))
+            (when entry
+              (push entry entries)))
+          (forward-line 1))))
+    (cl-remove-duplicates
+     (nreverse entries))))
+
+
+(defun elfeed-summary--entry-to-string (entry)
+  "Format ENTRY into a human-readable string for Helm."
+  (let ((title (elfeed-entry-title entry))
+        (feed  (elfeed-feed-title (elfeed-entry-feed entry))))
+    (format "[%s] %s" feed title)))
+
+(defun elfeed-summary--select-entry (&optional default-input)
+  "Select an Elfeed entry using Helm.
+DEFAULT-INPUT is a string used to pre‑filter the candidates.
+Returns the chosen entry or nil if aborted."
+  (helm :sources
+        (list
+         (helm-build-sync-source "Elfeed entries"
+           :candidates (mapcar
+                        (lambda (e)
+                          (cons (elfeed-summary--entry-to-string e) e))
+                        (hash-table-values elfeed-db-entries))
+           :fuzzy-match t
+           :action 'identity))
+        :buffer "*helm elfeed*"
+        :input (when default-input (string-trim default-input))
+        :execute-action-at-once-if-one t))
+
 
 (defun elfeed-summary--get-current-entry ()
   "Return the Elfeed entry for the current buffer."
