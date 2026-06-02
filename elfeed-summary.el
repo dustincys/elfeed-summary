@@ -20,6 +20,64 @@
 (require 'elfeed-summary-operations)
 (require 'elfeed-summary-keys)
 
+(defgroup elfeed-summary nil
+  "Elfeed summary utilities."
+  :group 'applications)
+
+(defcustom elfeed-summary--env-file "~/.env"
+  "Env file for PubMed credentials."
+  :type 'file)
+
+(defun elfeed-summary--load-env-file (&optional file)
+  "Load environment variables from FILE."
+  (let ((env-file
+         (expand-file-name
+          (or file "~/.env"))))
+    (when (file-exists-p env-file)
+      (with-temp-buffer
+        (insert-file-contents env-file)
+        (dolist (line
+                 (split-string
+                  (buffer-string)
+                  "\n"
+                  t))
+          ;; skip comments
+          (unless
+              (or
+               (string-prefix-p "#" line)
+               (string-empty-p line))
+            (when
+                (string-match
+                 "^\\([^=]+\\)=\\(.*\\)$"
+                 line)
+              (let ((key
+                     (string-trim
+                      (match-string 1 line)))
+                    (value
+                     (string-trim
+                      (match-string 2 line))))
+                ;; remove surrounding quotes
+                (setq value
+                      (replace-regexp-in-string
+                       "\\`[\"']\\|[\"']\\'"
+                       ""
+                       value))
+                (setenv key value)))))))))
+
+(defun elfeed-summary-initialize ()
+  (elfeed-summary--load-env-file
+   elfeed-summary--env-file))
+
+(defcustom elfeed-summary-pubmed-email
+  nil
+  "PubMed email address."
+  :type '(choice string (const nil)))
+
+(defcustom elfeed-summary-pubmed-api-key
+  nil
+  "NCBI API key."
+  :type '(choice string (const nil)))
+
 
 (defcustom elfeed-summary-node-fetch-script
   "/home/dustin/github/article-summarizer/src/fetch-articles.js"

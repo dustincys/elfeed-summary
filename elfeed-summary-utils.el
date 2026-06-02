@@ -121,6 +121,8 @@ Returns the chosen entry or nil if aborted."
 
 
 ;; string operation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defun elfeed-summary--html-to-text-simple (html)
   "Convert HTML to single-line text by stripping tags."
   (replace-regexp-in-string
@@ -144,6 +146,12 @@ Returns the chosen entry or nil if aborted."
        ""
        doi))))
 
+(defun elfeed-summary--pubmed-url-to-pmid (url)
+  (when
+      (string-match
+       "pubmed\\.ncbi\\.nlm\\.nih\\.gov/\\([0-9]+\\)"
+       url)
+    (match-string 1 url)))
 
 (defun elfeed-summary--science-url-to-doi (url)
   (when
