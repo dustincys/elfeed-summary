@@ -10,15 +10,6 @@
 ;; ...
 ;;; Code:
 
-(require 'elfeed)
-(require 'elfeed-goodies)
-(require 'org)
-
-(require 'elfeed-summary-appearance)
-(require 'elfeed-summary-summarize)
-(require 'elfeed-summary-export)
-(require 'elfeed-summary-operations)
-(require 'elfeed-summary-keys)
 
 (defgroup elfeed-summary nil
   "Elfeed summary utilities."
@@ -78,7 +69,6 @@
   "NCBI API key."
   :type '(choice string (const nil)))
 
-
 (defcustom elfeed-summary-node-fetch-script
   "/home/dustin/github/article-summarizer/src/fetch-articles.js"
   "Path to the Node.js script that accepts an input file (one URL per line)
@@ -92,6 +82,29 @@ and an output file, writing a JSON object mapping URL → summary."
   :group 'elfeed-summary)
 
 
+
+(require 'elfeed)
+(require 'elfeed-goodies)
+(require 'org)
+
+;; Core utilities (used by all sub-modules)
+(require 'elfeed-summary-utils)
+(require 'elfeed-summary-pubmed)
+
+;; Feature modules
+(require 'elfeed-summary-appearance)
+(require 'elfeed-summary-summarize)
+(require 'elfeed-summary-export)
+(require 'elfeed-summary-search)
+(require 'elfeed-summary-print)
+(require 'elfeed-summary-operations)
+(require 'elfeed-summary-keys)
+
+;; Optional integrations (load gracefully)
+(require 'elfeed-summary-update-entry nil t)
+(require 'elfeed-summary-zotero nil t)
+(require 'elfeed-summary-zotra nil t)
+(require 'elfeed-summary-org-protocol nil t)
 
 (provide 'elfeed-summary)
 ;;; elfeed-summary.el ends here

@@ -1,3 +1,24 @@
+;;; elfeed-summary-pubmed.el --- PubMed E-utilities API for elfeed-summary  -*- lexical-binding: t; -*-
+
+;; Author: Yanshuo Chu <yanshuochu@qq.com>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "30.2"))
+;; Keywords: news
+;; URL: https://github.com/dustincys/elfeed-summary
+
+;;; Commentary:
+;;
+;; PubMed E-utilities API client. Provides functions to:
+;;   - Search PubMed by DOI and retrieve PMIDs
+;;   - Fetch article metadata in XML via efetch
+;;   - Extract authors, abstract, DOI, journal, year
+;;   - Handle corrections/errata via original PMID lookup
+;;
+;;; Code:
+
+(require 'elfeed-summary-utils)
+
+
 (defun elfeed-summary--pubmed-build-url (base params)
   (concat
    base
@@ -5,7 +26,7 @@
    (url-build-query-string
     (append
      params
-     `(("email" ,elfeed-summary--pubmed-email))
+     `(("email" ,elfeed-summary-pubmed-email))
      (when elfeed-summary--pubmed-api-key
        `(("api_key" ,elfeed-summary--pubmed-api-key)))))))
 
@@ -283,3 +304,6 @@
       (error
        "Could not extract PMID from URL"))
     (elfeed-summary--pubmed-fetch-by-pmid pmid)))
+
+(provide 'elfeed-summary-pubmed)
+;;; elfeed-summary-pubmed.el ends here

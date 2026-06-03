@@ -77,3 +77,4 @@ bib, doi, abstract, pdf) and simplified HTML content."
     (goto-char (point-min))))
 
 (provide 'elfeed-summary-appearance)
+;;; elfeed-summary-appearance.el ends here

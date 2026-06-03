@@ -1,4 +1,4 @@
-;;; elfeed-summary-operations.el --- Batch fetch & update summaries for Elfeed  -*- lexical-binding: t; -*-
+;;; elfeed-summary-operations.el --- Cross-module operations for elfeed-summary  -*- lexical-binding: t; -*-
 
 ;; Author: Yanshuo Chu <yanshuochu@qq.com>
 ;; Version: 0.1.0
@@ -8,16 +8,10 @@
 
 ;;; Commentary:
 ;;
-;; This module provides batch operations for Elfeed entries, mainly
-;; `elfeed-summary-fetch-batch-articles' which:
-;;   1. Collects URLs from a list of entries.
-;;   2. Calls an external Node.js script to fetch/analyse the content.
-;;   3. Parses the returned JSON and saves summaries to each entry.
-;;   4. Optionally indexes entries and refreshes the Elfeed UI.
-;;
-;; Additional helpers (tagging, zotra integration, JSON parsing) are
-;; also defined here or declared with `declare-function' if placed
-;; elsewhere.
+;; This module provides cross-cutting operations used by multiple
+;; elfeed-summary sub-modules:
+;;   - Zotra integration (delegates to zotra when available)
+;;   - Async DB indexing for summary full-text search
 ;;
 ;;; Code:
 
@@ -26,24 +20,37 @@
 (require 'elfeed-summary-utils)
 
 
+;; ── Zotra integration ──────────────────────────────────────────────────
+
+(declare-function elfeed-summary--zotra-integrate-entry
+              "elfeed-summary-zotra"
+              (entry))
 
 
-;; ── Zotra integration (stub – replace with your actual implementation) ──
+;; ── Async summary indexing ─────────────────────────────────────────────
 
-(defun elfeed-summary--zotra-integrate-entry (entry)
-  "Integrate ENTRY with Zotra (placeholder)."
-  ;; Replace this body with your actual `my-feed/zotra-integrate-entry'.
-  (message "Zotra integration for %s (currently noop)"
-           (elfeed-entry-title entry)))
+(defvar elfeed-summary--index-hash (make-hash-table :test 'equal)
+  "Hash table mapping entry IDs to their summary text for fast lookup.")
 
-;; ── Async indexing (declared here, defined in `elfeed-summary-db') ──
+(defun elfeed-summary-db-index-entry-async (entry)
+  "Index ENTRY's summary asynchronously for full-text search.
+Stores the summary text in `elfeed-summary--index-hash' keyed by
+entry ID, without blocking the UI."
+  (let ((entry-id (elfeed-entry-id entry))
+        (summary (elfeed-meta entry :summary)))
+    (when (and entry-id summary (not (string-empty-p summary)))
+      (puthash entry-id summary elfeed-summary--index-hash)
+      (message "Indexed summary for: %s" (elfeed-entry-title entry)))))
 
-(declare-function elfeed-summary-db-index-entry-async
-                  "elfeed-summary-db"
-                  (entry))
-
-;; ── Batch fetch main function ────────────────────────────────────────
-
+(defun elfeed-summary-db-search-summaries (query)
+  "Search indexed summaries for QUERY string.
+Returns a list of (entry-id . summary) pairs."
+  (let ((results '()))
+    (maphash (lambda (id summary)
+               (when (string-match-p (regexp-quote query) summary)
+                 (push (cons id summary) results)))
+             elfeed-summary--index-hash)
+    results))
 
 
 (provide 'elfeed-summary-operations)

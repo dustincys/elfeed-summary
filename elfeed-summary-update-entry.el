@@ -1,14 +1,39 @@
-(defun my-feed/update-nature-entry (&optional entry)
+;;; elfeed-summary-update-entry.el --- Metadata updaters for Elfeed entries  -*- lexical-binding: t; -*-
+
+;; Author: Yanshuo Chu <yanshuochu@qq.com>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "30.2") (elfeed "3.5"))
+;; Keywords: news
+;; URL: https://github.com/dustincys/elfeed-summary
+
+;;; Commentary:
+;;
+;; This module provides metadata extraction and update functions for
+;; various academic publishers (Nature, Science, bioRxiv, PubMed).
+;; Each function fetches article metadata from the publisher's page
+;; or API and stores it in the Elfeed entry's meta fields.
+;;
+;; Usage:
+;;   (require 'elfeed-summary-update-entry)
+;;
+;;; Code:
+
+(require 'elfeed)
+(require 'elfeed-summary-utils)
+(require 'elfeed-summary-pubmed)
+
+(declare-function elfeed-score-scoring-get-score-from-entry "elfeed-score" (entry))
+
+
+;; ── Nature ─────────────────────────────────────────────────────────────
+
+(defun elfeed-summary--update-nature-entry (&optional entry)
   "Update Nature paper metadata for ENTRY.
 Extract JSON-LD metadata from Nature article page:
-- title
-- abstract
-- authors
-- DOI
-- institution
+- title, abstract, authors, DOI, institution.
 If ENTRY is nil, use current Elfeed entry."
   (interactive)
-  (let* ((entry (or entry (my-feed/get-current-entry)))
+  (let* ((entry (or entry (elfeed-summary--get-current-entry)))
          (link (elfeed-entry-link entry)))
     (message "DEBUG: Entry link: %s" link)
     (unless link
@@ -102,20 +127,23 @@ If ENTRY is nil, use current Elfeed entry."
        nil))))
 
 
-(defun my-feed/update-pubmed-entry (&optional entry)
+;; ── PubMed ─────────────────────────────────────────────────────────────
+
+(defun elfeed-summary--update-pubmed-entry (&optional entry)
+  "Update PubMed metadata for ENTRY."
   (interactive)
-  (let* ((entry (or entry (my-feed/get-current-entry)))
+  (let* ((entry (or entry (elfeed-summary--get-current-entry)))
          (link (elfeed-entry-link entry)))
     (unless link
       (error "No entry link found"))
     (unless (string-match "pubmed\\.ncbi\\.nlm\\.nih\\.gov" link)
       (error "Not a PubMed URL"))
-    (let* ((pmid (my-feed/pubmed-url-to-pmid link)))
+    (let* ((pmid (elfeed-summary--pubmed-url-to-pmid link)))
       (unless pmid
         (error "Cannot extract PMID from PubMed URL"))
       (message "PubMed PMID: %s" pmid)
       (condition-case err
-          (let* ((data (my-feed/pubmed-fetch-by-pmid pmid))
+          (let* ((data (elfeed-summary--pubmed-fetch-by-pmid pmid))
                  (doi (alist-get 'doi data))
                  (title (alist-get 'title data))
                  (abstract (alist-get 'abstract data))
@@ -156,191 +184,109 @@ If ENTRY is nil, use current Elfeed entry."
          nil)))))
 
 
-(defun my-feed/update-science-entry (&optional entry)
+;; ── Science ────────────────────────────────────────────────────────────
+
+(defun elfeed-summary--update-science-entry (&optional entry)
   "Update Science paper metadata for ENTRY using PubMed."
   (interactive)
-  (let* ((entry
-          (or entry
-              (my-feed/get-current-entry)))
-         (link
-          (elfeed-entry-link entry)))
+  (let* ((entry (or entry (elfeed-summary--get-current-entry)))
+         (link (elfeed-entry-link entry)))
     (unless link
       (error "No entry link found"))
-    (let* ((doi
-            (my-feed/science-url-to-doi link)))
+    (let* ((doi (elfeed-summary--science-url-to-doi link)))
       (unless doi
         (error "Cannot extract DOI from Science URL"))
-      (message
-       "Science DOI: %s"
-       doi)
+      (message "Science DOI: %s" doi)
       (condition-case err
-          (let* ((data
-                  (my-feed/pubmed-fetch-by-doi doi))
-                 (title
-                  (alist-get 'title data))
-                 (abstract
-                  (alist-get 'abstract data))
-                 (authors-full
-                  (alist-get 'authors data))
-                 (authors
-                  (mapcar
-                   (lambda (a)
-                     (list
-                      :name
-                      (alist-get 'name a)))
-                   authors-full))
-                 (last-author
-                  (car (last authors-full)))
-                 (institution
-                  (car
-                   (alist-get
-                    'affiliations
-                    last-author)))
-                 (result
-                  `((title . ,title)
-                    (abstract . ,abstract)
-                    (doi . ,doi)
-                    (institution . ,institution)
-                    (authors . ,authors))))
-            (message
-             "DEBUG: Title: %s"
-             (or title "none"))
-            (message
-             "DEBUG: Authors count: %d"
-             (length authors))
-            (message
-             "DEBUG: Authors: %S"
-             authors)
-            (message
-             "DEBUG: Institution: %s"
-             (or institution "none"))
-            ;; update elfeed metadata
-            (elfeed-meta--put
-             entry
-             :title
-             title)
-            (elfeed-meta--put
-             entry
-             :abstract
-             abstract)
-            (elfeed-meta--put
-             entry
-             :doi
-             doi)
-            (elfeed-meta--put
-             entry
-             :authors
-             authors)
-            (elfeed-meta--put
-             entry
-             :author_corresponding_institution
-             institution)
-            ;; persist db
+          (let* ((data (elfeed-summary--pubmed-fetch-by-doi doi))
+                 (title (alist-get 'title data))
+                 (abstract (alist-get 'abstract data))
+                 (authors-full (alist-get 'authors data))
+                 (authors (mapcar (lambda (a)
+                                    (list :name (alist-get 'name a)))
+                                  authors-full))
+                 (last-author (car (last authors-full)))
+                 (institution (car (alist-get 'affiliations last-author)))
+                 (result `((title . ,title)
+                           (abstract . ,abstract)
+                           (doi . ,doi)
+                           (institution . ,institution)
+                           (authors . ,authors))))
+            (message "DEBUG: Title: %s" (or title "none"))
+            (message "DEBUG: Authors count: %d" (length authors))
+            (message "DEBUG: Authors: %S" authors)
+            (message "DEBUG: Institution: %s" (or institution "none"))
+            (elfeed-meta--put entry :title title)
+            (elfeed-meta--put entry :abstract abstract)
+            (elfeed-meta--put entry :doi doi)
+            (elfeed-meta--put entry :authors authors)
+            (elfeed-meta--put entry :author_corresponding_institution institution)
             (elfeed-db-save)
-            ;; refresh UI
             (when (get-buffer "*elfeed-search*")
               (with-current-buffer "*elfeed-search*"
                 (elfeed-search-update :force)))
             (when (get-buffer "*elfeed-entry*")
               (with-current-buffer "*elfeed-entry*"
                 (elfeed-show-refresh)))
-            (message
-             "Updated Science metadata: %s"
-             doi)
+            (message "Updated Science metadata: %s" doi)
             result)
         (error
-         (message
-          "Science metadata update failed: %s (%S)"
-          link
-          err)
-         (message
-          "DEBUG: Error details: %s"
-          (error-message-string err))
+         (message "Science metadata update failed: %s (%S)" link err)
+         (message "DEBUG: Error details: %s" (error-message-string err))
          nil)))))
 
-(defun my-feed/update-entry-info
-    (&optional entry)
-  "Dynamically update metadata for ENTRY."
+
+;; ── bioRxiv ────────────────────────────────────────────────────────────
+
+(defun elfeed-summary--biorxiv-high-score-p (entry)
+  "Return non-nil if ENTRY has a high elfeed-score.
+Returns t if elfeed-score is not available (conservative default)."
+  (if (fboundp 'elfeed-score-scoring-get-score-from-entry)
+      (> (elfeed-score-scoring-get-score-from-entry entry) 0)
+    t))
+
+(defun elfeed-summary--update-biorxiv-entry (&optional entry)
+  "Synchronously update bioRxiv metadata for ENTRY."
   (interactive)
-  (let* ((entry
-          (or entry
-              (my-feed/get-current-entry)))
-         (link
-          (elfeed-entry-link entry)))
-    (unless link
-      (error "No entry link found"))
-    (cond
-     ;; bioRxiv
-     ((string-match-p
-       "biorxiv\\.org"
-       link)
-      (message
-       "Detected bioRxiv paper")
-      (my-feed/update-biorxiv-entry
-       entry))
-     ;; Nature
-     ((string-match-p
-       "nature\\.com"
-       link)
-      (message
-       "Detected Nature paper")
-      (my-feed/update-nature-entry
-       entry))
-     ;; Science
-     ((string-match-p
-       "science\\.org"
-       link)
-      (message
-       "Detected Science paper")
-      (my-feed/update-science-entry
-       entry))
-     ;; Pubmed
-     ;; https://pubmed.ncbi.nlm.nih.gov
-     ((string-match-p
-       "pubmed\\.ncbi\\.nlm\\.nih\\.gov\\|pubmed\\.gov"
-       link)
-      (message
-       "Detected pubmed paper")
-      (my-feed/update-pubmed-entry
-       entry))
-     ;; unsupported
-     (t
-      (message
-       "No metadata updater available for: %s"
-       link)))))
+  (let* ((entry (or entry (elfeed-summary--get-current-entry)))
+         (doi (or (elfeed-meta entry :doi)
+                  (elfeed-summary--extract-biorxiv-doi (elfeed-entry-link entry)))))
+    (unless doi
+      (error "No DOI found for bioRxiv entry"))
+    (let ((url-request-extra-headers '(("User-Agent" . "Emacs"))))
+      (condition-case err
+          (let* ((json (elfeed-summary--http-get-json
+                        (format "https://api.biorxiv.org/details/biorxiv/%s" doi)))
+                 (collection (alist-get 'collection json))
+                 (paper (cond ((listp collection) (car (last collection)))
+                              ((and collection (listp (car collection))) collection)
+                              (t nil))))
+            (when paper
+              (let ((authors-raw (alist-get 'authors paper))
+                    (abstract (alist-get 'abstract paper))
+                    (api-doi (alist-get 'doi paper))
+                    (author_corresponding (alist-get 'author_corresponding paper))
+                    (institution (alist-get 'author_corresponding_institution paper)))
+                (when api-doi (elfeed-meta--put entry :doi api-doi))
+                (when abstract (elfeed-meta--put entry :abstract abstract))
+                (when authors-raw
+                  (let ((authors (mapcar (lambda (x) (list :name (string-trim x)))
+                                         (split-string authors-raw ";"))))
+                    (when (and authors author_corresponding)
+                      (setcar (last authors) (list :name (string-trim author_corresponding))))
+                    (elfeed-meta--put entry :authors authors)))
+                (when institution (elfeed-meta--put entry :author_corresponding_institution institution))
+                (elfeed-db-save)
+                (when (get-buffer "*elfeed-search*")
+                  (with-current-buffer "*elfeed-search*"
+                    (elfeed-search-update :force)))
+                (message "Updated bioRxiv metadata: %s" api-doi))))
+        (error (message "bioRxiv update failed: %S" err))))))
 
-(defun my-feed/update-all-biorxiv-entries ()
-  "Batch update all bioRxiv entries in Elfeed DB."
-  (interactive)
-  (let ((updated 0))
-    (maphash
-     (lambda (_id entry)
-       (if (my-feed/bioRxiv-high-score-p entry)
-           (progn
-             (setq updated (1+ updated))
-             (message "Updating bioRxiv entry %d..." updated)
-             (my-feed/update-biorxiv-entry entry))))
-     elfeed-db-entries)
-    ;; persist once
-    (elfeed-db-save)
-    ;; refresh elfeed search
-    (when (get-buffer "*elfeed-search*")
-      (with-current-buffer "*elfeed-search*"
-        (elfeed-search-update :force)))
-    ;; refresh show buffer
-    (when (get-buffer "*elfeed-show*")
-      (with-current-buffer "*elfeed-show*"
-        (when (derived-mode-p 'elfeed-show-mode)
-          (elfeed-show-refresh))))
-    (message
-     "Processed %d bioRxiv entries (updated)"
-     updated)))
-
-
-(defun my-feed/update-biorxiv-entry-async (entry)
+(defun elfeed-summary--update-biorxiv-entry-async (entry)
   "Asynchronously update bioRxiv metadata for ENTRY."
   (let* ((doi (or (elfeed-meta entry :doi)
-                  (my-feed/extract-biorxiv-doi (elfeed-entry-link entry)))))
+                  (elfeed-summary--extract-biorxiv-doi (elfeed-entry-link entry)))))
     (when doi
       (url-retrieve (format "https://api.biorxiv.org/details/biorxiv/%s" doi)
                     (lambda (status)
@@ -382,7 +328,70 @@ If ENTRY is nil, use current Elfeed entry."
                       nil t)))))
 
 
-(defun my-feed/elfeed-auto-update-biorxiv (type entry db-entry)
+;; ── Auto-update hook ───────────────────────────────────────────────────
+
+(defun elfeed-summary--elfeed-auto-update-biorxiv (type entry db-entry)
+  "Auto-update bioRxiv entries when new items arrive.
+Intended for use with `elfeed-new-entry-hook'."
   (when (and (eq type :rss)
              (string-match-p "biorxiv" (elfeed-feed-url (elfeed-db-get-feed (elfeed-entry-feed-id db-entry)))))
-    (run-with-idle-timer 2 nil #'my-feed/update-biorxiv-entry-async db-entry)))
+    (run-with-idle-timer 2 nil #'elfeed-summary--update-biorxiv-entry-async db-entry)))
+
+
+;; ── Unified dispatcher ─────────────────────────────────────────────────
+
+(defun elfeed-summary--update-entry-info (&optional entry)
+  "Dynamically update metadata for ENTRY based on source URL."
+  (interactive)
+  (let* ((entry (or entry (elfeed-summary--get-current-entry)))
+         (link (elfeed-entry-link entry)))
+    (unless link
+      (error "No entry link found"))
+    (cond
+     ;; bioRxiv
+     ((string-match-p "biorxiv\\.org" link)
+      (message "Detected bioRxiv paper")
+      (elfeed-summary--update-biorxiv-entry entry))
+     ;; Nature
+     ((string-match-p "nature\\.com" link)
+      (message "Detected Nature paper")
+      (elfeed-summary--update-nature-entry entry))
+     ;; Science
+     ((string-match-p "science\\.org" link)
+      (message "Detected Science paper")
+      (elfeed-summary--update-science-entry entry))
+     ;; PubMed
+     ((string-match-p "pubmed\\.ncbi\\.nlm\\.nih\\.gov\\|pubmed\\.gov" link)
+      (message "Detected PubMed paper")
+      (elfeed-summary--update-pubmed-entry entry))
+     ;; unsupported
+     (t (message "No metadata updater available for: %s" link)))))
+
+(defun elfeed-summary--update-all-biorxiv-entries ()
+  "Batch update all bioRxiv entries in Elfeed DB."
+  (interactive)
+  (let ((updated 0))
+    (maphash
+     (lambda (_id entry)
+       (if (elfeed-summary--biorxiv-high-score-p entry)
+           (progn
+             (setq updated (1+ updated))
+             (message "Updating bioRxiv entry %d..." updated)
+             (elfeed-summary--update-biorxiv-entry entry))))
+     elfeed-db-entries)
+    ;; persist once
+    (elfeed-db-save)
+    ;; refresh elfeed search
+    (when (get-buffer "*elfeed-search*")
+      (with-current-buffer "*elfeed-search*"
+        (elfeed-search-update :force)))
+    ;; refresh show buffer
+    (when (get-buffer "*elfeed-show*")
+      (with-current-buffer "*elfeed-show*"
+        (when (derived-mode-p 'elfeed-show-mode)
+          (elfeed-show-refresh))))
+    (message "Processed %d bioRxiv entries (updated)" updated)))
+
+
+(provide 'elfeed-summary-update-entry)
+;;; elfeed-summary-update-entry.el ends here

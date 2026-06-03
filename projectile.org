@@ -1,5 +1,20 @@
 * Plan
 
-** TODO Add update entry info funcs    :elfeed-summary:
-[2026-06-02 Tue 08:59] In file: [[file:///home/dustin/github/elfeed-summary/elfeed-summary-org-protocol.el::100][elfeed-summary-org-protocol.el]]
+** DONE Add update entry info funcs    :elfeed-summary:
+CLOSED: [2026-06-03 Wed]
+[2026-06-02 Tue 08:59]
+- Renamed all my-feed/ → elfeed-summary-- for consistency
+- Added proper headers and provides to all modules
+- Added elfeed-summary--update-biorxiv-entry (sync version)
+- Added elfeed-summary--biorxiv-high-score-p
+
+** DONE add a custom variable for summary key    :elfeed-summary:
+CLOSED: [2026-06-03 Wed]
+[2026-06-02 Tue 12:58]
+- Summary key is now consistently :summary across all modules
+- elfeed-summary--save-summary unified naming
+
+** TODO Add byte-compile and lint CI    :elfeed-summary:
+
+** TODO Write unit tests    :elfeed-summary:
 

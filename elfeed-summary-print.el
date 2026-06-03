@@ -1,7 +1,26 @@
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;                   for openclaw skills call in terminal                   ;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun my-feed/print-ID-summary (entry-id &optional output-mode)
+;;; elfeed-summary-print.el --- Terminal output for elfeed-summary  -*- lexical-binding: t; -*-
+
+;; Author: Yanshuo Chu <yanshuochu@qq.com>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "30.2") (elfeed "3.5"))
+;; Keywords: news
+;; URL: https://github.com/dustincys/elfeed-summary
+
+;;; Commentary:
+;;
+;; This module provides functions to print Elfeed entry metadata
+;; for external tool consumption (e.g., openclaw skills).
+;; Supports output modes: all, summary, bib.
+;;
+;;; Code:
+
+(require 'elfeed)
+(require 'elfeed-summary-utils)
+
+
+;; ── Single entry printing ──────────────────────────────────────────────
+
+(defun elfeed-summary--print-ID-summary (entry-id &optional output-mode)
   (let ((e (elfeed-db-get-entry entry-id)))
     (if (not e)
         (message "Entry ID %s 不存在" entry-id)
@@ -15,16 +34,15 @@
             (bib (elfeed-meta e :bib))
             (bibkey (elfeed-meta e :bibkey))
             (doi (elfeed-meta e :doi))
-            (journal (my-feed/get-journal e))
+            (journal (elfeed-summary--get-journal e))
             (score (if (fboundp 'elfeed-score-scoring-get-score-from-entry)
-                       (elfeed-score-scoring-get-score-from-entry entry)
+                       (elfeed-score-scoring-get-score-from-entry e)
                      0))
             )
         (pcase output-mode
           ("bib"
            (when bib
              (format "%s\n\n" bib)))
-
           ("summary"
            (when summary
              (format "Title: %s\nSummary: %s\nAbstract: %s\nbibkey: %s\nScore: %s\n\n" title summary abstract bibkey score))
@@ -48,14 +66,14 @@
            (format "Unknown output-mode: %s\n" output-mode)))
         ))))
 
-(defun my-feed/print-multiple-ID-summary (id-list output-mode)
+(defun elfeed-summary--print-multiple-ID-summary (id-list output-mode)
   (let ((output-mode (or output-mode 'all)))
-    (mapconcat (lambda (id) (my-feed/print-ID-summary id output-mode))
+    (mapconcat (lambda (id) (elfeed-summary--print-ID-summary id output-mode))
                id-list
                "\n")))
 
 
-(defun my-feed/get-journal (entry)
+(defun elfeed-summary--get-journal (entry)
   (or
    (elfeed-feed-title (elfeed-entry-feed entry))
    (elfeed-feed-url (elfeed-entry-feed entry))
@@ -64,7 +82,7 @@
      (mapconcat #'symbol-name (elfeed-entry-tags entry) ", "))))
 
 
-(defun my-feed/search-print-summary (search-keyword output-mode &optional top-n elfeed-filter)
+(defun elfeed-summary--search-print-summary (search-keyword output-mode &optional top-n elfeed-filter)
   (let* ((output-mode (or output-mode 'all))
          (candidates '())
          (top-n (or top-n 10))
@@ -84,11 +102,10 @@
              (doi (elfeed-meta entry :doi))
              (entry-time (seconds-to-time (elfeed-entry-date entry)))
              (date (format-time-string "%Y-%m-%d" entry-time))
-             (journal (my-feed/get-journal entry))
+             (journal (elfeed-summary--get-journal entry))
              (score (if (fboundp 'elfeed-score-scoring-get-score-from-entry)
                         (elfeed-score-scoring-get-score-from-entry entry)
                       0)))
-
         (when (and
                (or (null filter-fn)
                    (funcall filter-fn
@@ -101,13 +118,11 @@
                                    (concat (or title "") " " (or summary "") " " (or abstract "")))))
           (push (list title date link summary journal score abstract bib doi authors bibkey)
                 candidates))))
-
     (setq candidates
           (seq-take
            (sort candidates
                  (lambda (a b) (> (nth 5 a) (nth 5 b))))
            top-n))
-
     (with-output-to-string
       (if (null candidates)
           (princ "No matching summaries found.\n")
@@ -127,7 +142,6 @@
               ("bib"
                (when bib
                  (princ (format "%s\n\n" bib))))
-
               ("summary"
                (when summary
                  (princ (format "Title: %s\nSummary: %s\nAbstract: %s\nbibkey: %s\nScore: %s\n\n" title summary abstract bibkey score)))
@@ -151,3 +165,6 @@
               (_
                (princ (format "Unknown output-mode: %s\n" output-mode))))
             ))))))
+
+(provide 'elfeed-summary-print)
+;;; elfeed-summary-print.el ends here

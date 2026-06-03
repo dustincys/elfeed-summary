@@ -99,7 +99,7 @@ Returns the chosen entry or nil if aborted."
     (error "Not in an Elfeed buffer"))))
 
 
-(defun elfeed-summary--elfeed-save-summary (entry text)
+(defun elfeed-summary--save-summary (entry text)
   "Save TEXT as summary for ENTRY and update the modification timestamp."
   (elfeed-tag-1 entry 'summarized)
   (elfeed-untag-1 entry 'to-summarize)
@@ -235,8 +235,7 @@ Return a time value (seconds since epoch) or nil."
 
 
 (provide 'elfeed-summary-utils)
-;;; elfeed-summary-utils.el ends here
-
 ;; Local Variables:
 ;; comment-column: 0
 ;; End:
+;;; elfeed-summary-utils.el ends here

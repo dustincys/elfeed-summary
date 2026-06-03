@@ -1,4 +1,32 @@
-(defun my-feed/zotero-fetch-bibtex-string (item-key)
+;;; elfeed-summary-zotero.el --- Zotero API integration for elfeed-summary  -*- lexical-binding: t; -*-
+
+;; Author: Yanshuo Chu <yanshuochu@qq.com>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "30.2") (helm "3.8"))
+;; Keywords: news
+;; URL: https://github.com/dustincys/elfeed-summary
+
+;;; Commentary:
+;;
+;; This module provides Zotero integration via the local Zotero HTTP API.
+;; Functions for fetching BibTeX strings, listing PDF attachments, and
+;; selecting items via Helm.
+;;
+;; Requirements:
+;;   - Zotero running with the "Better BibTeX" plugin
+;;   - Zotero local HTTP server enabled (default port 23119)
+;;
+;; Usage:
+;;   (require 'elfeed-summary-zotero)
+;;
+;;; Code:
+
+(require 'helm)
+
+(declare-function json-parse-string "json" (string &rest args))
+
+
+(defun elfeed-summary--zotero-fetch-bibtex-string (item-key)
   "Fetch the BibTeX string for a specific Zotero ITEM-KEY."
   (let* ((url (format "http://127.0.0.1:23119/api/users/0/items/%s?format=bibtex" item-key))
          (buffer (url-retrieve-synchronously url))
@@ -13,7 +41,7 @@
       (kill-buffer buffer))
     bibtex))
 
-(defun my-feed/zotero-helm-get-pdf-paths ()
+(defun elfeed-summary--zotero-helm-get-pdf-paths ()
   "Fetch Zotero PDFs and return list of (TITLE . (PATH PARENT-KEY))."
   ;; Added limit=1000 to ensure we get enough items
   (let* ((url "http://127.0.0.1:23119/api/users/0/items?itemType=attachment&limit=1000")
@@ -37,7 +65,7 @@
      #'identity
      (mapcar (lambda (item)
                (let* ((data (alist-get 'data item))
-                      (parent-key (alist-get 'parentItem data)) ;; <--- NEW: Get Parent Key
+                      (parent-key (alist-get 'parentItem data))
                       (content-type (alist-get 'contentType data))
                       (links (alist-get 'links item))
                       (enclosure (alist-get 'enclosure links)))
@@ -54,21 +82,25 @@
 
                        ;; RETURN format: (Title . (Path ParentKey))
                        (cons title (list href parent-key)))))))
-             attachments)))) ;; <--- FIXED: attachments is now inside mapcar's parens
+             attachments))))
 
-(defun my-feed/zotero-helm-return-data (&optional default-input)
-  "Prompts user to select a Zotero item.
-   RETURNS: A cons cell (BibTeX-String . PDF-Path)."
+(defun elfeed-summary--zotero-helm-return-data (&optional default-input)
+  "Prompt user to select a Zotero item via Helm.
+Returns a cons cell (BibTeX-String . PDF-Path)."
   (interactive)
-  (let ((candidates (my-feed/zotero-helm-get-pdf-paths)))
+  (let ((candidates (elfeed-summary--zotero-helm-get-pdf-paths)))
     (helm :sources `((name . "Select Zotero Paper")
                      (candidates . ,candidates)
                      (action . (lambda (candidate)
                                  ;; candidate is formatted as: (Path ParentKey)
                                  (let* ((path (nth 0 candidate))
                                         (key  (nth 1 candidate))
-                                        (bib  (my-feed/zotero-fetch-bibtex-string key)))
-                                   ;; We return the data structure here
+                                        (bib  (elfeed-summary--zotero-fetch-bibtex-string key)))
+                                   ;; Return the data structure
                                    (cons bib path)))))
           :input (when default-input (string-trim default-input))
           :execute-action-at-once-if-one t)))
+
+
+(provide 'elfeed-summary-zotero)
+;;; elfeed-summary-zotero.el ends here

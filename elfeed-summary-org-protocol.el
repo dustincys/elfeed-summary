@@ -32,15 +32,13 @@
 (require 'helm)
 (require 'elfeed-db)            ;; for elfeed-db-entries hash table
 (require 'elfeed-show)          ;; for elfeed-show-refresh
-
 (require 'elfeed-summary-utils)
 
 
+;; ─── declare function ──────────────────────────────────────────────────────;
 (declare-function elfeed-summary-db-index-entry-async
-                  "elfeed-summary-db"
+                  "elfeed-summary-operations"
                   (entry))
-(declare-function elfeed-tag-1   "elfeed-db.el" (entry tag))
-(declare-function elfeed-untag-1 "elfeed-db.el" (entry tag))
 
 ;; ── Register the protocol ────────────────────────────────────────────
 (eval-after-load 'org-protocol
@@ -84,8 +82,7 @@ INFO is a plist containing keys :url, :title, :summary
     nil))
 
 (provide 'elfeed-summary-org-protocol)
-;;; elfeed-summary-org-protocol.el ends here
-
 ;; Local Variables:
 ;; comment-column: 0
 ;; End:
+;;; elfeed-summary-org-protocol.el ends here

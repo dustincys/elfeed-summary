@@ -2,6 +2,48 @@
 ;; export
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'elfeed-summary-utils)
+
+(defun elfeed-summary--entry-to-tex (entry)
+  "Format a single Elfeed ENTRY as a LaTeX section.
+Returns a string with \\section, metadata, summary, and abstract."
+  (let* ((title (elfeed-entry-title entry))
+         (link (elfeed-entry-link entry))
+         (date (format-time-string "%Y-%m-%d"
+                                   (seconds-to-time (elfeed-entry-date entry))))
+         (authors (elfeed-meta entry :authors))
+         (doi (elfeed-meta entry :doi))
+         (summary (elfeed-meta entry :summary))
+         (abstract (elfeed-meta entry :abstract))
+         (bib (elfeed-meta entry :bib))
+         (feed (elfeed-feed-title (elfeed-entry-feed entry))))
+    (with-temp-buffer
+      (insert (format "\\section{%s}\n" (or title "Untitled")))
+      (insert "\\begin{itemize}\n")
+      (when feed
+        (insert (format "  \\item Feed: %s\n" feed)))
+      (when date
+        (insert (format "  \\item Date: %s\n" date)))
+      (when doi
+        (insert (format "  \\item DOI: \\href{https://doi.org/%s}{%s}\n" doi doi)))
+      (when link
+        (insert (format "  \\item URL: \\url{%s}\n" link)))
+      (when authors
+        (insert "  \\item Authors: ")
+        (dolist (a authors)
+          (insert (format "%s, " (alist-get 'name a))))
+        (delete-char -2)
+        (insert "\n"))
+      (insert "\\end{itemize}\n")
+      (when summary
+        (insert (format "\\subsection*{Summary}\n%s\n" summary)))
+      (when abstract
+        (insert (format "\\subsection*{Abstract}\n%s\n" abstract)))
+      (when bib
+        (insert (format "\\subsection*{BibTeX}\n\\begin{MyVerbatim}\n%s\n\\end{MyVerbatim}\n" bib)))
+      (insert "\n")
+      (buffer-string))))
+
 (defun elfeed-summary--export-search-to-tex
     (&optional output-base compile)
   "Export current Elfeed search results to TeX/PDF.
@@ -95,3 +137,6 @@ COMPILE:
   "Export current Elfeed search results directly to PDF."
   (interactive)
   (elfeed-summary--export-search-to-tex nil t))
+
+(provide 'elfeed-summary-export)
+;;; elfeed-summary-export.el ends here

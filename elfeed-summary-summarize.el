@@ -1,4 +1,4 @@
-;;; elfeed-summary-summzrize.el --- Batch fetch & update summaries for Elfeed  -*- lexical-binding: t; -*-
+;;; elfeed-summary-summarize.el --- Batch fetch & update summaries for Elfeed  -*- lexical-binding: t; -*-
 
 ;; Author: Yanshuo Chu <yanshuochu@qq.com>
 ;; Version: 0.1.0
@@ -22,6 +22,10 @@
 ;;; Code:
 
 (require 'elfeed-summary-utils)
+
+(declare-function elfeed-summary--zotra-integrate-entry "elfeed-summary-zotra" (entry))
+(declare-function elfeed-summary-db-index-entry-async "elfeed-summary-operations" (entry))
+(declare-function json-read-file "json" (file))
 
 (defvar elfeed-summary-fetch-timeout)
 
@@ -71,12 +75,13 @@ zotra integration is attempted, and it is queued for async indexing."
                        (let* ((url (elfeed-entry-link entry))
                               (summary (gethash url result-dict)))
                          (if (and summary (not (string-empty-p summary)))
-                             (elfeed-summary-save-summary entry summary)
+                             (elfeed-summary--save-summary entry summary)
                            (progn
                              (elfeed-summary--elfeed-tag-1 entry 'NO-CONTEXT)
                              (elfeed-summary--elfeed-untag-1 entry 'to-summarize)))
                          (condition-case zot-err
-                             (elfeed-summary--zotra-integrate-entry entry)
+                             (when (fboundp 'elfeed-summary--zotra-integrate-entry)
+                               (elfeed-summary--zotra-integrate-entry entry))
                            (error (message "ZOTRA failed for %s: %s" url zot-err)))
                          (when summary
                            (message "Begin indexing %s..." (elfeed-entry-title entry))
@@ -113,4 +118,4 @@ zotra integration is attempted, and it is queued for async indexing."
                                 elfeed-summary-fetch-timeout)))))))
 
 (provide 'elfeed-summary-summarize)
-;;; elfeed-summary-summzrize.el ends here
+;;; elfeed-summary-summarize.el ends here
