@@ -1,8 +1,5 @@
 # elfeed-summary
 
-[![MELPA](https://melpa.org/packages/elfeed-summary-badge.svg)](https://melpa.org/#/elfeed-summary)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
 English | [中文](README_zh.md)
 
 An Emacs package that extends [Elfeed](https://github.com/skeeto/elfeed) with AI-powered article summarization, metadata enrichment, full-text search, and export capabilities. Designed for researchers and knowledge workers who manage large RSS feeds of academic papers and articles.

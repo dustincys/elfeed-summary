@@ -1,8 +1,5 @@
 # elfeed-summary
 
-[![MELPA](https://melpa.org/packages/elfeed-summary-badge.svg)](https://melpa.org/#/elfeed-summary)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
 [English](README.md) | 中文
 
 为 [Elfeed](https://github.com/skeeto/elfeed) 扩展 AI 文章摘要、元数据丰富、全文搜索和导出功能的 Emacs 包。面向管理大量学术论文和文章 RSS 源的研究人员与知识工作者。
